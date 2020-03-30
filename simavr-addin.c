@@ -18,6 +18,5 @@ AVR_MCU(16000000, "atmega328p");
 AVR_MCU_VCD_FILE("gtkwave_trace.vcd", 1000);
 
 const struct avr_mmcu_vcd_trace_t _mytrace[]  _MMCU_ = {
-	{ AVR_MCU_VCD_SYMBOL("DDRB"), .what = (void*)&DDRB, },	
-	{ AVR_MCU_VCD_SYMBOL("PORTB"), .mask = (1 << PB6), .what = (void*)&PORTB, },	
+	{ AVR_MCU_VCD_SYMBOL("D13"), .mask = (1 << PB5), .what = (void*)&PORTB, },
 };
