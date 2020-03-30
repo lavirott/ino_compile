@@ -41,13 +41,13 @@ INCLUDE_FILES=-I$(ARDUINO_DIR)/hardware/arduino/cores/arduino -I$(ARDUINO_DIR)/h
 .PRECIOUS: %.elf
 
 # Library sources
-all: lib/libarduino.a $(TARGET) $(TARGET_EEP) $(TARGET_AXF)
+all: lib/libarduino.a $(TARGET) $(TARGET_EEP)
 
 flash: all
 	avrdude -p $(MCU_AVRDUDE) -b $(BAUDRATE) -c $(PROGRAMMER) -P $(TTY) -v -U flash:w:$(TARGET)
 
-simavr: all
-	$(SIMAVR_DIR)/run_avr -m $(MCU) -f $(FREQ_CPU) $(TARGET_AXF)
+simavr: all $(TARGET_AXF)
+	simavr -m $(MCU) -f $(FREQ_CPU) $(TARGET_AXF)
 
 lib/libarduino.a:
 	@mkdir -p lib/avr-libc
