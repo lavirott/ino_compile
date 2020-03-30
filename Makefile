@@ -50,6 +50,7 @@ simavr: all
 	$(SIMAVR_DIR)/run_avr -m $(MCU) -f $(FREQ_CPU) $(TARGET_AXF)
 
 lib/libarduino.a:
+	@mkdir -p lib/avr-libc
 	@make -C lib
 
 %.cpp: %.ino
