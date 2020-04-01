@@ -21,7 +21,7 @@ AR=avr-ar
 OBJ_COPY=avr-objcopy
 
 # Configure MCU chracteristics
-FREQ_CPU=16000000
+FREQ_MCU=16000000
 MCU=atmega328p
 
 # Configure thing for flashing target
@@ -31,23 +31,26 @@ BAUDRATE=115200
 PROGRAMMER=arduino
 
 # Compile flags
-GENERAL_FLAGS=-MMD -Wall -Os -mmcu=$(MCU) -DF_CPU=$(FREQ_CPU)L -fno-inline-small-functions -ffunction-sections -fdata-sections -DUSB_VID=null -DUSB_PID=null -DARDUINO=106
-CFLAGS=$(GENERAL_FLAGS)
-CPPFLAGS=$(GENERAL_FLAGS) -fno-exceptions
+GENERAL_FLAGS=-Os -w -Wall -mmcu=$(MCU) -DF_CPU=$(FREQ_MCU)L -ffunction-sections -fdata-sections -flto -MMD -DUSB_VID=null -DUSB_PID=null -DARDUINO=10812 -DARDUINO_AVR_UNO -DARDUINO_ARCH_AVR
+CFLAGS=$(GENERAL_FLAGS) -std=gnu11 -fno-fat-lto-objects 
+CPPFLAGS=$(GENERAL_FLAGS) -std=gnu++11 -x c++ -fpermissive -fno-exceptions -fno-threadsafe-statics 
 
 # Include files locations
-INCLUDE_FILES=-I$(ARDUINO_DIR)/hardware/arduino/cores/arduino -I$(ARDUINO_DIR)/hardware/arduino/variants/standard -I$(SIMAVR_DIR)/sim/avr 
+INCLUDES=-I$(ARDUINO_DIR)/hardware/arduino/cores/arduino 
+INCLUDES+=-I$(ARDUINO_DIR)/hardware/arduino/variants/standard 
+INCLUDES+=-I$(SIMAVR_DIR)/sim/avr 
 
-.PRECIOUS: %.elf
+.PRECIOUS: %.elf %.c
 
 # Library sources
 all: lib/libarduino.a $(TARGET) $(TARGET_EEP)
+	@rm -f *.d
 
 flash: all
 	avrdude -p $(MCU_AVRDUDE) -b $(BAUDRATE) -c $(PROGRAMMER) -P $(TTY) -v -U flash:w:$(TARGET)
 
 simavr: all $(TARGET_AXF)
-	simavr -m $(MCU) -f $(FREQ_CPU) $(TARGET_AXF)
+	simavr -m $(MCU) -f $(FREQ_MCU) $(TARGET_AXF)
 
 lib/libarduino.a:
 	@mkdir -p lib/avr-libc
@@ -55,17 +58,20 @@ lib/libarduino.a:
 
 %.cpp: %.ino
 	@echo "#include <Arduino.h>" > $@
-	@echo  >> $@
+	@echo >> $@
 	@cat $< >> $@
 
+%.c: %.gen
+	@FREQ_MCU=$(FREQ_MCU) MCU="\"$(MCU)\"" VCD_OUTPUT_FILE="\"gtkwave_trace.vcd\"" ./gentoc.sh $< $@
+
 %.o: %.c
-	$(CC) $(CFLAGS) $(INCLUDE_FILES) -o $@ -c $<
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ -c $<
 
 %.o: %.cpp
-	$(CPP) $(CPPFLAGS) $(INCLUDE_FILES) -o $@ -c $<
+	$(CPP) $(CPPFLAGS) $(INCLUDES) -o $@ -c $<
 
 %.axf: %.o simavr-addin.o
-	$(CC) -Wall -gdwraf-2 -Wl,--relax,--gc-sections -Wl,--undefined=_mmcu,--section-start=.mmcu=0x910000 $(CFLAGS) -o $@ $^ lib/libarduino.a -lm
+	$(CC) -Wall -Wl,--relax,--gc-sections -Wl,--undefined=_mmcu,--section-start=.mmcu=0x910000 $(CFLAGS) -o $@ $^ lib/libarduino.a -lm
 
 %.elf: %.o
 	$(CC) -Wl,--gc-sections -mmcu=$(MCU) -o $@ $^ lib/libarduino.a -lm
@@ -79,7 +85,7 @@ lib/libarduino.a:
 .PHONY: clean
 
 clean:
-	@rm -f *.d *.o $(TARGET_ELF) $(TARGET_EEP) $(TARGET_AXF) $(TARGET)
+	@rm -f *.d *.o simavr-addin.c $(TARGET_ELF) $(TARGET_EEP) $(TARGET_AXF) $(TARGET)
 
 mrproper: clean
 	@rm -f *.vcd
